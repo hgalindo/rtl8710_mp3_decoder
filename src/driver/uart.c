@@ -98,12 +98,12 @@ uart_config(uint8 uart_no, UartDevice *uart)
         PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_U1TXD_BK);
     } else {
         /* rcv_buff size if 0x100 */
-        _xt_isr_attach(ETS_UART_INUM, uart_rx_intr_handler_ssc);
+        //sk//_xt_isr_attach(ETS_UART_INUM, uart_rx_intr_handler_ssc);
         PIN_PULLUP_DIS(PERIPHS_IO_MUX_U0TXD_U);
         PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD);
     }
 
-    uart_div_modify(uart_no, UART_CLK_FREQ / (uart->baut_rate));
+    //sk//uart_div_modify(uart_no, UART_CLK_FREQ / (uart->baut_rate));
 
     WRITE_PERI_REG(UART_CONF0(uart_no), uart->exist_parity
                    | uart->parity
@@ -171,9 +171,9 @@ uart_init(void)
     uart_config(UART0, &uart);
     uart_config(UART1, &uart);
 
-    os_install_putc1(uart1_write_char);
+    //sk//os_install_putc1(uart1_write_char);
 
-    _xt_isr_unmask(1 << ETS_UART_INUM);
+    //sk//_xt_isr_unmask(1 << ETS_UART_INUM);
 
     xQueueUart = xQueueCreate(32, sizeof(os_event_t));
 
@@ -216,7 +216,7 @@ UART_SetParity(UART_Port uart_no, UART_ParityMode Parity_mode)
 void ICACHE_FLASH_ATTR
 UART_SetBaudrate(UART_Port uart_no, uint32 baud_rate)
 {
-    uart_div_modify(uart_no, UART_CLK_FREQ / baud_rate);
+    //sk//uart_div_modify(uart_no, UART_CLK_FREQ / baud_rate);
 }
 
 //only when USART_HardwareFlowControl_RTS is set , will the rx_thresh value be set.
@@ -267,16 +267,16 @@ UART_SetIntrEna(UART_Port uart_no, uint32 ena_mask)
 void ICACHE_FLASH_ATTR
 UART_intr_handler_register(void *fn)
 {
-    _xt_isr_attach(ETS_UART_INUM, fn);
+    //sk//_xt_isr_attach(ETS_UART_INUM, fn);
 }
 
 void ICACHE_FLASH_ATTR
 UART_SetPrintPort(UART_Port uart_no)
 {
     if (uart_no == 1) {
-        os_install_putc1(uart1_write_char);
+        //sk//os_install_putc1(uart1_write_char);
     } else {
-        os_install_putc1(uart0_write_char);
+        //sk//os_install_putc1(uart0_write_char);
     }
 }
 

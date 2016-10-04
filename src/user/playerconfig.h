@@ -102,7 +102,7 @@ this if you don't have a 23LC1024 chip connected to the ESP but still want to tr
 the MP3 decoder. Be warned, if your network isn't 100% quiet and latency-free and/or
 the server isn't very close to your ESP, this _will_ lead to stutters in the played 
 MP3 stream! */
-//#define FAKE_SPI_BUFF
+#define FAKE_SPI_BUFF
 
 
 #endif

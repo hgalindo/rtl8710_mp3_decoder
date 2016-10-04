@@ -46,7 +46,7 @@ speed.
 #define i2c_bbpll_en_audio_clock_out_lsb        7
 #define i2c_bbpll_hostid                           4
 
-#define i2c_writeReg_Mask(block, host_id, reg_add, Msb, Lsb, indata)  rom_i2c_writeReg_Mask(block, host_id, reg_add, Msb, Lsb, indata)
+#define i2c_writeReg_Mask(block, host_id, reg_add, Msb, Lsb, indata)  //sk//rom_i2c_writeReg_Mask(block, host_id, reg_add, Msb, Lsb, indata)
 #define i2c_readReg_Mask(block, host_id, reg_add, Msb, Lsb)  rom_i2c_readReg_Mask(block, host_id, reg_add, Msb, Lsb)
 #define i2c_writeReg_Mask_def(block, reg_add, indata) \
       i2c_writeReg_Mask(block, block##_hostid,  reg_add,  reg_add##_msb,  reg_add##_lsb,  indata)
@@ -151,13 +151,13 @@ void ICACHE_FLASH_ATTR i2sInit() {
 	SET_PERI_REG_MASK(SLC_RX_LINK, ((uint32)&i2sBufDesc[0]) & SLC_RXLINK_DESCADDR_MASK);
 
 	//Attach the DMA interrupt
-	_xt_isr_attach(ETS_SLC_INUM, slc_isr);
+	//sk//_xt_isr_attach(ETS_SLC_INUM, slc_isr);
 	//Enable DMA operation intr
 	WRITE_PERI_REG(SLC_INT_ENA,  SLC_RX_EOF_INT_ENA);
 	//clear any interrupt flags that are set
 	WRITE_PERI_REG(SLC_INT_CLR, 0xffffffff);
 	///enable DMA intr in cpu
-	_xt_isr_unmask(1<<ETS_SLC_INUM);
+	///sk//_xt_isr_unmask(1<<ETS_SLC_INUM);
 
 	//We use a queue to keep track of the DMA buffers that are empty. The ISR will push buffers to the back of the queue,
 	//the mp3 decode will pull them from the front and fill them. For ease, the queue will contain *pointers* to the DMA

@@ -15,6 +15,9 @@
 #include "semphr.h"
 #include "queue.h"
 
+#include <wifi/wifi_conf.h>
+#include <wifi/wifi_util.h>
+
 #include "lwip/sockets.h"
 #include "lwip/err.h"
 #include "lwip/dns.h"
@@ -366,18 +369,21 @@ void ICACHE_FLASH_ATTR tskconnect(void *pvParameters) {
 	vTaskDelay(3000/portTICK_RATE_MS);
 	
 	//Go to station mode
-	wifi_station_disconnect();
-	if (wifi_get_opmode() != STATION_MODE) { 
-		wifi_set_opmode(STATION_MODE);
-	}
+	//wifi_stattion_disconnect();
+	//if (wifi_get_opmode() != STATION_MODE) { 
+	//	wifi_set_opmode(STATION_MODE);
+	//}
+	wifi_off();
+	wifi_on(RTW_MODE_STA_AP);
 
 	//Connect to the defined access point.
 	struct station_config *config=malloc(sizeof(struct station_config));
 	memset(config, 0x00, sizeof(struct station_config));
 	sprintf(config->ssid, AP_NAME);
 	sprintf(config->password, AP_PASS);
-	wifi_station_set_config(config);
-	wifi_station_connect();
+	//wifi_station_set_config(config);
+	//wifi_station_connect();
+	wifi_connect(config->ssid, RTW_SECURITY_WPA2_AES_PSK, config->password, strlen((char*)config->ssid), strlen((char*)config->password), 0, NULL);
 	free(config);
 
 	//Fire up the reader task. The reader task will fire up the MP3 decoder as soon
@@ -388,7 +394,7 @@ void ICACHE_FLASH_ATTR tskconnect(void *pvParameters) {
 }
 
 //We need this to tell the OS we're running at a higher clock frequency.
-extern void os_update_cpu_frequency(int mhz);
+//sk//extern void os_update_cpu_frequency(int mhz);
 
 void ICACHE_FLASH_ATTR user_init(void) {
 	//Tell hardware to run at 160MHz instead of 80MHz
@@ -398,7 +404,7 @@ void ICACHE_FLASH_ATTR user_init(void) {
 	//than the other solutions to keep up with the output samples, so it's also enabled there.
 #if defined(DELTA_SIGMA_HACK)
 	SET_PERI_REG_MASK(0x3ff00014, BIT(0));
-	os_update_cpu_frequency(160);
+	//sk//s_update_cpu_frequency(160);
 #endif
 	
 	//Set the UART to 115200 baud
