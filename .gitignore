@@ -1,9 +1,3 @@
-bin/eagle.*
-mp3/driver/.output
-mp3/mad/.output
-mp3/user/.output
-mp3/.output
-mp3/mapfile
-
-
-
+GCC-RELEASE/application/*
+*.o
+src/mapfile

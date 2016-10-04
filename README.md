@@ -1,6 +1,13 @@
+WORK IN PROGESS
+
+Current status:
+- It compiles with RTL8711 SDK 3.5 GCC
+- Hooks to RTL's wifi connect, http stack, UART, GPIO and I2S have not been updated
+
+
 # I2S MP3 webradio streaming example
 
-This is an example of how to use the I2S module inside the ESP8266 to output
+This is an example of how to use the I2S module inside the RTL8710, RTL8711, RTL8195 to output
 sound. In this case, it is used to output decoded MP3 data (actually, more 
 accurately: MPEG2 layer III data): the code described here basically is a 
 webradio streamer which can connect to an Icecast server, take the MP3 data 
@@ -10,15 +17,15 @@ rates of up to 48KHz.
 
 ## Configuration options, building
 
-All high-level options can be configured in mp3/user/playerconfig.h. Edit 
+All high-level options can be configured in src/mp3/user/playerconfig.h. Edit 
 that file to set up your access point and a webradio stream or other source of
 MP3 data served over HTTP.
 
-To build the code, try running make.sh in the mp3/ directory. Alternatively,
+To build the code, try running make in the src/GCC-RELEASE/ directory. Alternatively,
 the way to use 'make' to build this code is:
 make COMPILE=gcc BOOT=none APP=0 SPI_SPEED=40 SPI_MODE=QIO SPI_SIZE=1024
 
-The resulting binaries will be in the bin/ folder. Please disregard the message
+The resulting binaries will be in the GCC-RELEASE/Application/Debug/bin/ folder. Please disregard the message
 that pops up at the end of the make process: the addresses it mentions are
 wrong. The correct addresses to load the resulting files are:
 ```
@@ -141,9 +148,9 @@ off this queue and put the samples in it until it is full, then take the
 next buffer etc. The MP3 decoder generally is faster than the I2S output,
 so at a certain moment there will be no free buffers left. The queue
 system of FreeRTOS will suspend the mp3 decoding task when that
-happens, allowing the ESP8266 to attend to other tasks.
+happens, allowing the RTL8710 to attend to other tasks.
 
-While the ESP8266 is able to run at 160MHz, we're leaving it at its
-default speed of 80MHz here: it seems that at that speed the ESP8266
+While the RTL8710 is able to run at 160MHz, we're leaving it at its
+default speed of 80MHz here: it seems that at that speed the RTL8710
 is perfectly capable of decoding even 320KBit MP3 data.
 
