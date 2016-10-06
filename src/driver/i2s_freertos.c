@@ -12,7 +12,7 @@
 
 /*
 How does this work? Basically, to get sound, you need to:
-- Connect an I2S codec to the I2S pins on the ESP.
+- Connect an I2S codec to the I2S pins on the RTL.
 - Start up a thread that's going to do the sound output
 - Call I2sInit()
 - Call I2sSetRate() with the sample rate you want.
@@ -33,6 +33,10 @@ speed.
 #include "semphr.h"
 #include "queue.h"
 
+//RTL's
+#include "i2s_api.h"
+
+//ESP's
 #include "i2s_reg.h"
 #include "slc_register.h"
 #include "sdio_slv.h"
@@ -57,7 +61,12 @@ speed.
 #define ETS_SLC_INUM       1
 #endif
 
+//RTL's
+i2s_t i2s_obj;
+u8 i2s_tx_buf[I2S_DMA_PAGE_SIZE*I2S_DMA_PAGE_NUM];
+u8 i2s_rx_buf[I2S_DMA_PAGE_SIZE*I2S_DMA_PAGE_NUM];
 
+//ESP's
 //Pointer to the I2S DMA buffer data
 static unsigned int *i2sBuf[I2SDMABUFCNT];
 //I2S DMA buffer descriptors
@@ -96,9 +105,86 @@ LOCAL void slc_isr(void) {
 	portEND_SWITCHING_ISR(HPTaskAwoken);
 }
 
+//RTL's interrupt callback
+void test_tx_complete(void *data, char *pbuf)
+{
+    int *ptx_buf;
+    
+    i2s_t *obj = (i2s_t *)data;
+    static u32 count=0;
+    //DBG_8195A_I2S_LVL(VERI_I2S_LVL, "I2S%d %s\n",pI2SDemoHnd->DevNum,__func__);
+    count++;
+    if ((count&1023) == 1023)
+    {
+         DBG_8195A_I2S_LVL(VERI_I2S_LVL, ",\n");
+    }
+
+    ptx_buf = i2s_get_tx_page(obj);
+    //ptx_buf = (int*)pbuf;
+#if defined(SAMPLE_FILE)	
+    _memcpy((void*)ptx_buf, (void*)&sample[curr_cnt], I2S_DMA_PAGE_SIZE);
+	curr_cnt+=(I2S_DMA_PAGE_SIZE/sizeof(short));
+	if(curr_cnt >= sample_size*(obj->channel_num==CH_MONO?1:2)) {
+		curr_cnt = 0;
+    }
+#else
+	if(obj->word_length == WL_16b){
+		gen_sound_sample16((short*)ptx_buf, I2S_DMA_PAGE_SIZE/sizeof(short), obj->channel_num==CH_MONO?1:2);
+	}else{
+		gen_sound_sample24((int*)ptx_buf, I2S_DMA_PAGE_SIZE/sizeof(int), obj->channel_num==CH_MONO?1:2);
+	}
+#endif
+    i2s_send_page(obj, (uint32_t*)ptx_buf);
+}
+
+void test_rx_complete(void *data, char* pbuf)
+{
+    i2s_t *obj = (i2s_t *)data;
+    int *ptx_buf;
+
+    static u32 count=0;
+    count++;
+    if ((count&1023) == 1023)
+    {
+         DBG_8195A_I2S_LVL(VERI_I2S_LVL, ".\n");
+    }
+
+    ptx_buf = i2s_get_tx_page(obj);
+    _memcpy((void*)ptx_buf, (void*)pbuf, I2S_DMA_PAGE_SIZE);
+    i2s_recv_page(obj);    // submit a new page for receive
+    i2s_send_page(obj, (uint32_t*)ptx_buf);    // loopback
+}
 
 //Initialize I2S subsystem for DMA circular buffer use
 void ICACHE_FLASH_ATTR i2sInit() {
+	//RTL's I2S init
+    int *ptx_buf;
+    int i,j;
+
+	i2s_obj.channel_num = CH_STEREO;
+	i2s_obj.sampling_rate = SR_44p1KHZ;
+	i2s_obj.word_length = WL_16b;
+	i2s_obj.direction = I2S_DIR_TXRX; //consider switching to TX only  
+	i2s_init(&i2s_obj, I2S_SCLK_PIN, I2S_WS_PIN, I2S_SD_PIN);
+    i2s_set_dma_buffer(&i2s_obj, (char*)i2s_tx_buf, (char*)i2s_rx_buf, \
+        I2S_DMA_PAGE_NUM, I2S_DMA_PAGE_SIZE);
+    i2s_tx_irq_handler(&i2s_obj, (i2s_irq_handler)test_tx_complete, (uint32_t)&i2s_obj);
+    i2s_rx_irq_handler(&i2s_obj, (i2s_irq_handler)test_rx_complete, (uint32_t)&i2s_obj);
+
+	i2s_set_param(&i2s_obj,SAMPLE_FILE_CHNUM,SAMPLE_FILE_RATE,WL_16b);
+    for (i=0;i<I2S_DMA_PAGE_NUM;i++) {
+        ptx_buf = i2s_get_tx_page(&i2s_obj);
+        if (ptx_buf) {
+            _memcpy((void*)ptx_buf, (void*)&sample[curr_cnt], I2S_DMA_PAGE_SIZE);
+            i2s_send_page(&i2s_obj, (uint32_t*)ptx_buf);
+            curr_cnt+=(I2S_DMA_PAGE_SIZE/sizeof(short));
+            if(curr_cnt >= sample_size*(i2s_obj.channel_num==CH_MONO?1:2)) {
+                curr_cnt = 0;
+            }
+        }
+    }
+
+	//ESP's
 	int x, y;
 	
 	underrunCnt=0;
