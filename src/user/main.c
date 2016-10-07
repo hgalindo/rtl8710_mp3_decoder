@@ -14,6 +14,7 @@
 #include "task.h"
 #include "semphr.h"
 #include "queue.h"
+#include "main.h"
 
 #include <wifi/wifi_conf.h>
 #include <wifi/wifi_util.h>

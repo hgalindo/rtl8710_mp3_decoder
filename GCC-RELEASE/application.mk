@@ -1,7 +1,6 @@
 
 # Initialize tool chain
 # -------------------------------------------------------------------
-#ARM_GCC_TOOLCHAIN = /usr/
 ARM_GCC_TOOLCHAIN = ../../../tools/arm-none-eabi-gcc/4.8.3-2014q1/
 AMEBA_TOOLDIR	= ../../../component/soc/realtek/8195a/misc/iar_utility/common/tools/
 FLASH_TOOLDIR = ../../../component/soc/realtek/8195a/misc/gcc_utility/
@@ -48,9 +47,6 @@ BIN_DIR=$(TARGET)/Debug/bin
 INCLUDES =
 INCLUDES += -I../inc
 INCLUDES += -I../inc/rtl8195a
-#INCLUDES += -I../inc/json
-#INCLUDES += -I../inc/lwpi
-#INCLUDES += -I../inc/
 INCLUDES += -I../inc/ssl
 INCLUDES += -I../inc/udhcp
 INCLUDES += -I../src/include
@@ -400,7 +396,7 @@ SRC_C += ../src/driver/i2s_freertos.c
 #
 #user
 SRC_C += ../src/user/spiram_fifo.c
-SRC_C += ../src/user/user_main.c
+SRC_C += ../src/user/main.c
 
 # Generate obj list
 # -------------------------------------------------------------------

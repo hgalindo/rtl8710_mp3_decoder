@@ -22,6 +22,9 @@
 #include "task.h"
 #include "semphr.h"
 #include "spiram.h"
+#include "spi_register.h"
+#include "eagle_soc.h"
+#include "pin_mux_register.h"
 
 #define SPI 			0
 #define HSPI			1

@@ -2,6 +2,7 @@
 #define MAIN_H
 
 #include <autoconf.h>
+#include <stdbool.h>
 
 #ifndef CONFIG_WLAN
 #define CONFIG_WLAN	1
