@@ -5,12 +5,15 @@
 Current status:
 - It compiles with RTL8711 SDK 3.5 GCC 1.0.0
 - Hooks to RTL's wifi library - completed but not tested
-- Hooks to RTL's TCP/IP stack, UART, GPIO and I2S have not been updated
+- Hooks to RTL's TCP/IP stack/socket - completed but not tested
+- Hooks to between MAD and RTL's I2S - completed but not tested
 
 3/ How to compile and flash your RTL based module
 
 3/1/ Install SDK RTL8711 version 3.5a GCC 1.0.0
+
 3/2/ git clone this repository to /project folder (where the ameba example is)
+
 3/3/ cd GCC_RELEASE; make; make flash
 
 4/ Hardware
@@ -27,7 +30,7 @@ GPIO_C1   - BCLK
 
 4/2/ (optional) SPI RAM such as Microchip 23LC1024 
 
-<To be updated>
+(To be updated)
 ```
 RTL pin   - 23LC1024 pin
 ------------------------
