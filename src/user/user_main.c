@@ -160,7 +160,6 @@ void render_sample_block(short *short_sample_buff, int no_samples) {
 	sampAddDel=recalcAddDelSamp(sampAddDel);
 #endif
 
-
 	sampErr+=sampAddDel;
 	for (i=0; i<no_samples; i++) {
 #if defined(PWM_HACK)
@@ -187,12 +186,13 @@ void render_sample_block(short *short_sample_buff, int no_samples) {
 	}
 }
 
+
 //Called by the NXP modificationss of libmad. Sets the needed output sample rate.
 static oldRate=0;
 void ICACHE_FLASH_ATTR set_dac_sample_rate(int rate) {
 	if (rate==oldRate) return;
 	oldRate=rate;
-	printf("Rate %d\n", rate);
+	DBG_8195A("Rate %d\n", rate);
 
 #ifdef ALLOW_VARY_SAMPLE_BITS
 	i2sSetRate(rate, 0);
@@ -200,6 +200,7 @@ void ICACHE_FLASH_ATTR set_dac_sample_rate(int rate) {
 	i2sSetRate(rate, 1);
 #endif
 }
+
 
 static enum  mad_flow ICACHE_FLASH_ATTR input(struct mad_stream *stream) {
 	int n, i;
@@ -215,7 +216,7 @@ static enum  mad_flow ICACHE_FLASH_ATTR input(struct mad_stream *stream) {
 		if (n==0) {					//Can't take anything?
 			//Wait until there is enough data in the buffer. This only happens when the data feed 
 			//rate is too low, and shouldn't normally be needed!
-//			printf("Buf uflow, need %d bytes.\n", sizeof(readBuf)-rem);
+//			DBG_8195A("Buf uflow, need %d bytes.\n", sizeof(readBuf)-rem);
 			bufUnderrunCt++;
 			//We both silence the output as well as wait a while by pushing silent samples into the i2s system.
 			//This waits for about 200mS
@@ -234,7 +235,7 @@ static enum  mad_flow ICACHE_FLASH_ATTR input(struct mad_stream *stream) {
 
 //Routine to print out an error
 static enum mad_flow ICACHE_FLASH_ATTR error(void *data, struct mad_stream *stream, struct mad_frame *frame) {
-	printf("dec err 0x%04x (%s)\n", stream->error, mad_stream_errorstr(stream));
+	DBG_8195A("dec err 0x%04x (%s)\n", stream->error, mad_stream_errorstr(stream));
 	return MAD_FLOW_CONTINUE;
 }
 
@@ -252,16 +253,16 @@ void ICACHE_FLASH_ATTR tskmad(void *pvParameters) {
 	frame=malloc(sizeof(struct mad_frame));
 	synth=malloc(sizeof(struct mad_synth));
 
-	if (stream==NULL) { printf("MAD: malloc(stream) failed\n"); return; }
-	if (synth==NULL) { printf("MAD: malloc(synth) failed\n"); return; }
-	if (frame==NULL) { printf("MAD: malloc(frame) failed\n"); return; }
+	if (stream==NULL) { DBG_8195A("MAD: malloc(stream) failed\n"); return; }
+	if (synth==NULL) { DBG_8195A("MAD: malloc(synth) failed\n"); return; }
+	if (frame==NULL) { DBG_8195A("MAD: malloc(frame) failed\n"); return; }
 
 	//Initialize I2S
 	i2sInit();
 
 	bufUnderrunCt=0;
 
-	printf("MAD: Decoder start.\n");
+	DBG_8195A("MAD: Decoder start.\n");
 	//Initialize mp3 parts
 	mad_stream_init(stream);
 	mad_frame_init(frame);
@@ -314,10 +315,10 @@ int ICACHE_FLASH_ATTR openConn(const char *streamHost, const char *streamPath) {
 		}
 
 		remote_ip.sin_port = htons(streamPort);
-		printf("Connecting to server %s...\n", ipaddr_ntoa((const ip_addr_t*)&remote_ip.sin_addr.s_addr));
+		DBG_8195A("Connecting to server %s...\n", ipaddr_ntoa((const ip_addr_t*)&remote_ip.sin_addr.s_addr));
 		if (connect(sock, (struct sockaddr *)(&remote_ip), sizeof(struct sockaddr))!=00) {
 			close(sock);
-			printf("Conn err.\n");
+			DBG_8195A("Conn err.\n");
 			vTaskDelay(1000/portTICK_RATE_MS);
 			continue;
 		}
@@ -344,22 +345,22 @@ void ICACHE_FLASH_ATTR tskreader(void *pvParameters) {
 	int c=0;
 	while(1) {
 		fd=openConn(streamHost, streamPath);
-		printf("Reading into SPI RAM FIFO...\n");
+		DBG_8195A("Reading into SPI RAM FIFO...\n");
 		do {
 			n=read(fd, wbuf, sizeof(wbuf));
 			if (n>0) spiRamFifoWrite(wbuf, n);
 			c+=n;
 			if ((!madRunning) && (spiRamFifoFree()<spiRamFifoLen()/2)) {
 				//Buffer is filled. Start up the MAD task. Yes, the 2100 words of stack is a fairly large amount but MAD seems to need it.
-				if (xTaskCreate(tskmad, "tskmad", 2100, NULL, PRIO_MAD, NULL)!=pdPASS) printf("ERROR creating MAD task! Out of memory?\n");
+				if (xTaskCreate(tskmad, "tskmad", 2100, NULL, PRIO_MAD, NULL)!=pdPASS) DBG_8195A("ERROR creating MAD task! Out of memory?\n");
 				madRunning=1;
 			}
 			
 			t=(t+1)&255;
-			if (t==0) printf("Buffer fill %d, DMA underrun ct %d, buff underrun ct %d\n", spiRamFifoFill(), (int)i2sGetUnderrunCnt(), bufUnderrunCt);
+			if (t==0) DBG_8195A("Buffer fill %d, DMA underrun ct %d, buff underrun ct %d\n", spiRamFifoFill(), (int)i2sGetUnderrunCnt(), bufUnderrunCt);
 		} while (n>0);
 		close(fd);
-		printf("Connection closed.\n");
+		DBG_8195A("Connection closed.\n");
 	}
 }
 
@@ -384,11 +385,12 @@ void ICACHE_FLASH_ATTR tskconnect(void *pvParameters) {
 	//wifi_station_set_config(config);
 	//wifi_station_connect();
 	wifi_connect(config->ssid, RTW_SECURITY_WPA2_AES_PSK, config->password, strlen((char*)config->ssid), strlen((char*)config->password), 0, NULL);
+	DBG_8195A("Connected to wifi\n");
 	free(config);
 
 	//Fire up the reader task. The reader task will fire up the MP3 decoder as soon
 	//as it has read enough MP3 data.
-	if (xTaskCreate(tskreader, "tskreader", 230, NULL, PRIO_READER, NULL)!=pdPASS) printf("Error creating reader task!\n");
+	if (xTaskCreate(tskreader, "tskreader", 230, NULL, PRIO_READER, NULL)!=pdPASS) DBG_8195A("Error creating reader task!\n");
 	//We're done. Delete this task.
 	vTaskDelete(NULL);
 }
@@ -403,20 +405,20 @@ void ICACHE_FLASH_ATTR user_init(void) {
 	//links, so you may want to turn it on. Also, the delta-sigma code seems to need a bit more speed
 	//than the other solutions to keep up with the output samples, so it's also enabled there.
 #if defined(DELTA_SIGMA_HACK)
-	SET_PERI_REG_MASK(0x3ff00014, BIT(0));
-	//sk//s_update_cpu_frequency(160);
+	//SET_PERI_REG_MASK(0x3ff00014, BIT(0));
+	//s_update_cpu_frequency(160);
 #endif
 	
 	//Set the UART to 115200 baud
-	UART_SetBaudrate(0, 115200);
+	//UART_SetBaudrate(0, 115200);
 
 	//Initialize the SPI RAM chip communications and see if it actually retains some bytes. If it
 	//doesn't, warn user.
 	if (!spiRamFifoInit()) {
-		printf("\n\nSPI RAM chip fail!\n");
+		DBG_8195A("\n\nSPI RAM chip fail!\n");
 		while(1);
 	}
-	printf("\n\nHardware initialized. Waiting for network.\n");
+	DBG_8195A("\n\nHardware initialized. Waiting for network.\n");
 	xTaskCreate(tskconnect, "tskconnect", 200, NULL, 3, NULL);
 }
 

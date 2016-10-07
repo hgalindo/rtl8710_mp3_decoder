@@ -396,8 +396,6 @@ SRC_C += ../src/mad/stream.c
 #driver
 SRC_C += ../src/driver/spiram.c
 SRC_C += ../src/driver/i2s_freertos.c
-SRC_C += ../src/driver/gpio.c
-SRC_C += ../src/driver/uart.c
 
 #
 #user

@@ -27,6 +27,7 @@ GPIO_C1   - BCLK
 
 4/2/ (optional) SPI RAM such as Microchip 23LC1024 
 
+<To be updated>
 ```
 RTL pin   - 23LC1024 pin
 ------------------------

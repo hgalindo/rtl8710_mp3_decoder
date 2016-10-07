@@ -910,7 +910,7 @@ mad_fixed_t ICACHE_FLASH_ATTR III_requantize(unsigned int value, signed int exp)
     if (exp >= 5) {
       /* overflow */
 # if defined(DEBUG)
-      fprintf(stderr, "requantize overflow (%f * 2^%d)\n",
+      DBG_8195A("requantize overflow (%f * 2^%d)\n",
 	      mad_f_todouble(requantized), exp);
 # endif
       requantized = MAD_F_MAX;
@@ -1242,7 +1242,7 @@ enum mad_error ICACHE_FLASH_ATTR III_huffdecode(struct mad_bitptr *ptr, mad_fixe
 
     if (cachesz + bits_left < 0) {
 # if 0 && defined(DEBUG)
-      fprintf(stderr, "huffman count1 overrun (%d bits)\n",
+      DBG_8195A(stderr, "huffman count1 overrun (%d bits)\n",
 	      -(cachesz + bits_left));
 # endif
 
@@ -1257,9 +1257,9 @@ enum mad_error ICACHE_FLASH_ATTR III_huffdecode(struct mad_bitptr *ptr, mad_fixe
 
 # if 0 && defined(DEBUG)
   if (bits_left < 0)
-    fprintf(stderr, "read %d bits too many\n", -bits_left);
+    DBG_8195A("read %d bits too many\n", -bits_left);
   else if (cachesz + bits_left > 0)
-    fprintf(stderr, "%d stuffing bits\n", cachesz + bits_left);
+    DBG_8195A("%d stuffing bits\n", cachesz + bits_left);
 # endif
 
   /* rzero */
@@ -2665,7 +2665,7 @@ int ICACHE_FLASH_ATTR mad_layer_III(struct mad_stream *stream, struct mad_frame 
   }
 
 # if 0 && defined(DEBUG)
-  fprintf(stderr,
+  DBG_8195A(
 	  "main_data_begin:%u, md_len:%u, frame_free:%u, "
 	  "data_bitlen:%u, anc_bitlen: %u\n",
 	  si.main_data_begin, md_len, frame_free,

@@ -186,11 +186,11 @@ int ICACHE_FLASH_ATTR spiRamTest() {
 		bb=0xaa^x;
 		if (aa!=a[x]) {
 			err=1;
-//			printf("aa: 0x%x != 0x%x\n", aa, a[x]);
+//			DBG_8195A("aa: 0x%x != 0x%x\n", aa, a[x]);
 		}
 		if (bb!=b[x]) {
 			err=1;
-//			printf("bb: 0x%x != 0x%x\n", bb, b[x]);
+//			DBG_8195A("bb: 0x%x != 0x%x\n", bb, b[x]);
 		}
 	}
 	return !err;

@@ -69,7 +69,7 @@ void ICACHE_FLASH_ATTR spiRamFifoRead(char *buff, int len) {
 		if (n>(SPIRAMSIZE-fifoRpos)) n=SPIRAMSIZE-fifoRpos; //don't read past end of buffer
 		xSemaphoreTake(mux, portMAX_DELAY);
 		if (fifoFill<n) {
-//			printf("FIFO empty.\n");
+//			DBG_8195A("FIFO empty.\n");
 			//Drat, not enough data in FIFO. Wait till there's some written and try again.
 			fifoUdrCnt++;
 			xSemaphoreGive(mux);
@@ -98,7 +98,7 @@ void ICACHE_FLASH_ATTR spiRamFifoWrite(char *buff, int len) {
 
 		xSemaphoreTake(mux, portMAX_DELAY);
 		if ((SPIRAMSIZE-fifoFill)<n) {
-//			printf("FIFO full.\n");
+//			DBG_8195A("FIFO full.\n");
 			//Drat, not enough free room in FIFO. Wait till there's some read and try again.
 			fifoOvfCnt++;
 			xSemaphoreGive(mux);

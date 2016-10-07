@@ -66,11 +66,19 @@ i2s_t i2s_obj;
 u8 i2s_tx_buf[I2S_DMA_PAGE_SIZE*I2S_DMA_PAGE_NUM];
 u8 i2s_rx_buf[I2S_DMA_PAGE_SIZE*I2S_DMA_PAGE_NUM];
 
+#include <section_config.h>
+int sample_size=139916;
+
+SECTION(".sdram.data")
+short sample[]={-1,0};
+
+int curr_cnt=0;
+
 //ESP's
 //Pointer to the I2S DMA buffer data
-static unsigned int *i2sBuf[I2SDMABUFCNT];
+static unsigned int *i2sBuf[I2S_DMA_PAGE_NUM];
 //I2S DMA buffer descriptors
-static struct sdio_queue i2sBufDesc[I2SDMABUFCNT];
+static struct sdio_queue i2sBufDesc[I2S_DMA_PAGE_NUM];
 //Queue which contains empty DMA buffers
 static xQueueHandle dmaQueue;
 //DMA underrun counter
@@ -121,19 +129,11 @@ void test_tx_complete(void *data, char *pbuf)
 
     ptx_buf = i2s_get_tx_page(obj);
     //ptx_buf = (int*)pbuf;
-#if defined(SAMPLE_FILE)	
     _memcpy((void*)ptx_buf, (void*)&sample[curr_cnt], I2S_DMA_PAGE_SIZE);
 	curr_cnt+=(I2S_DMA_PAGE_SIZE/sizeof(short));
 	if(curr_cnt >= sample_size*(obj->channel_num==CH_MONO?1:2)) {
 		curr_cnt = 0;
     }
-#else
-	if(obj->word_length == WL_16b){
-		gen_sound_sample16((short*)ptx_buf, I2S_DMA_PAGE_SIZE/sizeof(short), obj->channel_num==CH_MONO?1:2);
-	}else{
-		gen_sound_sample24((int*)ptx_buf, I2S_DMA_PAGE_SIZE/sizeof(int), obj->channel_num==CH_MONO?1:2);
-	}
-#endif
     i2s_send_page(obj, (uint32_t*)ptx_buf);
 }
 
@@ -171,7 +171,15 @@ void ICACHE_FLASH_ATTR i2sInit() {
     i2s_tx_irq_handler(&i2s_obj, (i2s_irq_handler)test_tx_complete, (uint32_t)&i2s_obj);
     i2s_rx_irq_handler(&i2s_obj, (i2s_irq_handler)test_rx_complete, (uint32_t)&i2s_obj);
 
-	i2s_set_param(&i2s_obj,SAMPLE_FILE_CHNUM,SAMPLE_FILE_RATE,WL_16b);
+	//We use a queue to keep track of the DMA buffers that are empty. The ISR will push buffers to the back of the queue,
+	//the mp3 decode will pull them from the front and fill them. For ease, the queue will contain *pointers* to the DMA
+	//buffers, not the data itself. The queue depth is one smaller than the amount of buffers we have, because there's
+	//always a buffer that is being used by the DMA subsystem *right now* and we don't want to be able to write to that
+	//simultaneously.
+	dmaQueue=xQueueCreate(I2S_DMA_PAGE_NUM-1, sizeof(int*));
+	
+	i2s_set_param(&i2s_obj, i2s_obj.channel_num, i2s_obj.sampling_rate, WL_16b);
+	DBG_8195A("I2S Init\n");
     for (i=0;i<I2S_DMA_PAGE_NUM;i++) {
         ptx_buf = i2s_get_tx_page(&i2s_obj);
         if (ptx_buf) {
@@ -185,6 +193,7 @@ void ICACHE_FLASH_ATTR i2sInit() {
     }
 
 	//ESP's
+#if 0
 	int x, y;
 	
 	underrunCnt=0;
@@ -192,27 +201,12 @@ void ICACHE_FLASH_ATTR i2sInit() {
 	//First, take care of the DMA buffers.
 	for (y=0; y<I2SDMABUFCNT; y++) {
 		//Allocate memory for this DMA sample buffer.
-		i2sBuf[y]=malloc(I2SDMABUFLEN*4);
+		i2sBuf[y]=malloc(I2SDMABUFLEN*4); //4 bytes = 32*2*4
 		//Clear sample buffer. We don't want noise.
 		for (x=0; x<I2SDMABUFLEN; x++) {
 			i2sBuf[y][x]=0;
 		}
 	}
-
-	//Reset DMA
-	SET_PERI_REG_MASK(SLC_CONF0, SLC_RXLINK_RST|SLC_TXLINK_RST);
-	CLEAR_PERI_REG_MASK(SLC_CONF0, SLC_RXLINK_RST|SLC_TXLINK_RST);
-
-	//Clear DMA int flags
-	SET_PERI_REG_MASK(SLC_INT_CLR,  0xffffffff);
-	CLEAR_PERI_REG_MASK(SLC_INT_CLR,  0xffffffff);
-
-	//Enable and configure DMA
-	CLEAR_PERI_REG_MASK(SLC_CONF0, (SLC_MODE<<SLC_MODE_S));
-	SET_PERI_REG_MASK(SLC_CONF0,(1<<SLC_MODE_S));
-	SET_PERI_REG_MASK(SLC_RX_DSCR_CONF,SLC_INFOR_NO_REPLACE|SLC_TOKEN_NO_REPLACE);
-	CLEAR_PERI_REG_MASK(SLC_RX_DSCR_CONF, SLC_RX_FILL_EN|SLC_RX_EOF_MODE | SLC_RX_FILL_MODE);
-
 
 	//Initialize DMA buffer descriptors in such a way that they will form a circular
 	//buffer.
@@ -227,23 +221,10 @@ void ICACHE_FLASH_ATTR i2sInit() {
 		i2sBufDesc[x].next_link_ptr=(int)((x<(I2SDMABUFCNT-1))?(&i2sBufDesc[x+1]):(&i2sBufDesc[0]));
 	}
 	
-	//Feed dma the 1st buffer desc addr
-	//To send data to the I2S subsystem, counter-intuitively we use the RXLINK part, not the TXLINK as you might
-	//expect. The TXLINK part still needs a valid DMA descriptor, even if it's unused: the DMA engine will throw
-	//an error at us otherwise. Just feed it any random descriptor.
-	CLEAR_PERI_REG_MASK(SLC_TX_LINK,SLC_TXLINK_DESCADDR_MASK);
-	SET_PERI_REG_MASK(SLC_TX_LINK, ((uint32)&i2sBufDesc[1]) & SLC_TXLINK_DESCADDR_MASK); //any random desc is OK, we don't use TX but it needs something valid
-	CLEAR_PERI_REG_MASK(SLC_RX_LINK,SLC_RXLINK_DESCADDR_MASK);
-	SET_PERI_REG_MASK(SLC_RX_LINK, ((uint32)&i2sBufDesc[0]) & SLC_RXLINK_DESCADDR_MASK);
-
 	//Attach the DMA interrupt
 	//sk//_xt_isr_attach(ETS_SLC_INUM, slc_isr);
-	//Enable DMA operation intr
-	WRITE_PERI_REG(SLC_INT_ENA,  SLC_RX_EOF_INT_ENA);
-	//clear any interrupt flags that are set
-	WRITE_PERI_REG(SLC_INT_CLR, 0xffffffff);
-	///enable DMA intr in cpu
-	///sk//_xt_isr_unmask(1<<ETS_SLC_INUM);
+	//enable DMA intr in cpu
+	//sk//_xt_isr_unmask(1<<ETS_SLC_INUM);
 
 	//We use a queue to keep track of the DMA buffers that are empty. The ISR will push buffers to the back of the queue,
 	//the mp3 decode will pull them from the front and fill them. For ease, the queue will contain *pointers* to the DMA
@@ -252,113 +233,38 @@ void ICACHE_FLASH_ATTR i2sInit() {
 	//simultaneously.
 	dmaQueue=xQueueCreate(I2SDMABUFCNT-1, sizeof(int*));
 
-	//Start transmission
-	SET_PERI_REG_MASK(SLC_TX_LINK, SLC_TXLINK_START);
-	SET_PERI_REG_MASK(SLC_RX_LINK, SLC_RXLINK_START);
-
-//----
-
-	//Init pins to i2s functions
-	PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_I2SO_DATA);
-	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_I2SO_WS);
-	PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, FUNC_I2SO_BCK);
-
-	//Enable clock to i2s subsystem
-	i2c_writeReg_Mask_def(i2c_bbpll, i2c_bbpll_en_audio_clock_out, 1);
-
-	//Reset I2S subsystem
-	CLEAR_PERI_REG_MASK(I2SCONF,I2S_I2S_RESET_MASK);
-	SET_PERI_REG_MASK(I2SCONF,I2S_I2S_RESET_MASK);
-	CLEAR_PERI_REG_MASK(I2SCONF,I2S_I2S_RESET_MASK);
-
-	//Select 16bits per channel (FIFO_MOD=0), no DMA access (FIFO only)
-	CLEAR_PERI_REG_MASK(I2S_FIFO_CONF, I2S_I2S_DSCR_EN|(I2S_I2S_RX_FIFO_MOD<<I2S_I2S_RX_FIFO_MOD_S)|(I2S_I2S_TX_FIFO_MOD<<I2S_I2S_TX_FIFO_MOD_S));
-	//Enable DMA in i2s subsystem
-	SET_PERI_REG_MASK(I2S_FIFO_CONF, I2S_I2S_DSCR_EN);
-
-	//tx/rx binaureal
-	CLEAR_PERI_REG_MASK(I2SCONF_CHAN, (I2S_TX_CHAN_MOD<<I2S_TX_CHAN_MOD_S)|(I2S_RX_CHAN_MOD<<I2S_RX_CHAN_MOD_S));
-
-	//Clear int
-	SET_PERI_REG_MASK(I2SINT_CLR,   I2S_I2S_TX_REMPTY_INT_CLR|I2S_I2S_TX_WFULL_INT_CLR|
-			I2S_I2S_RX_WFULL_INT_CLR|I2S_I2S_PUT_DATA_INT_CLR|I2S_I2S_TAKE_DATA_INT_CLR);
-	CLEAR_PERI_REG_MASK(I2SINT_CLR, I2S_I2S_TX_REMPTY_INT_CLR|I2S_I2S_TX_WFULL_INT_CLR|
-			I2S_I2S_RX_WFULL_INT_CLR|I2S_I2S_PUT_DATA_INT_CLR|I2S_I2S_TAKE_DATA_INT_CLR);
-
-	//trans master&rece slave,MSB shift,right_first,msb right
-	CLEAR_PERI_REG_MASK(I2SCONF, I2S_TRANS_SLAVE_MOD|
-						(I2S_BITS_MOD<<I2S_BITS_MOD_S)|
-						(I2S_BCK_DIV_NUM <<I2S_BCK_DIV_NUM_S)|
-						(I2S_CLKM_DIV_NUM<<I2S_CLKM_DIV_NUM_S));
-	SET_PERI_REG_MASK(I2SCONF, I2S_RIGHT_FIRST|I2S_MSB_RIGHT|I2S_RECE_SLAVE_MOD|
-						I2S_RECE_MSB_SHIFT|I2S_TRANS_MSB_SHIFT|
-						((16&I2S_BCK_DIV_NUM )<<I2S_BCK_DIV_NUM_S)|
-						((7&I2S_CLKM_DIV_NUM)<<I2S_CLKM_DIV_NUM_S));
-
-
-	//No idea if ints are needed...
-	//clear int
-	SET_PERI_REG_MASK(I2SINT_CLR,   I2S_I2S_TX_REMPTY_INT_CLR|I2S_I2S_TX_WFULL_INT_CLR|
-			I2S_I2S_RX_WFULL_INT_CLR|I2S_I2S_PUT_DATA_INT_CLR|I2S_I2S_TAKE_DATA_INT_CLR);
-	CLEAR_PERI_REG_MASK(I2SINT_CLR,   I2S_I2S_TX_REMPTY_INT_CLR|I2S_I2S_TX_WFULL_INT_CLR|
-			I2S_I2S_RX_WFULL_INT_CLR|I2S_I2S_PUT_DATA_INT_CLR|I2S_I2S_TAKE_DATA_INT_CLR);
-	//enable int
-	SET_PERI_REG_MASK(I2SINT_ENA,   I2S_I2S_TX_REMPTY_INT_ENA|I2S_I2S_TX_WFULL_INT_ENA|
-	I2S_I2S_RX_REMPTY_INT_ENA|I2S_I2S_TX_PUT_DATA_INT_ENA|I2S_I2S_RX_TAKE_DATA_INT_ENA);
-
-	//Start transmission
-	SET_PERI_REG_MASK(I2SCONF,I2S_I2S_TX_START);
+#endif
 }
 
 
-#define BASEFREQ (160000000L)
+//#define BASEFREQ (160000000L)
 #define ABS(x) (((x)>0)?(x):(-(x)))
 
 //Set the I2S sample rate, in HZ
-void ICACHE_FLASH_ATTR i2sSetRate(int rate, int lockBitcount) {
+void ICACHE_FLASH_ATTR i2sSetRate(int rate, int lockBitcount) {		
+	//(lockBitcount?17:20) - 16+1 or 19+1 bits
+	int sample_rate = SR_96KHZ;
+	if (rate<=96000 || ABS(rate-96000)<ABS(rate-88200)) sample_rate = SR_96KHZ;
+    else if (rate<=88200 || ABS(rate-88200)<ABS(rate-48000)) sample_rate = SR_88p2KHZ;
+	else if (rate<=48000 || ABS(rate-48000)<ABS(rate-44100)) sample_rate = SR_48KHZ;
+    else if (rate<=44100 || ABS(rate-44100)<ABS(rate-32000)) sample_rate = SR_44p1KHZ;
+	else if (rate<=32000 || ABS(rate-32000)<ABS(rate-24000)) sample_rate = SR_32KHZ;
+	else if (rate<=24000 || ABS(rate-24000)<ABS(rate-22050)) sample_rate = SR_24KHZ;
+	else if (rate<=22050 || ABS(rate-22050)<ABS(rate-16000)) sample_rate = SR_22p05KHZ;
+	else if (rate<=16000 || ABS(rate-16000)<ABS(rate-11020)) sample_rate = SR_16KHZ;
+	else if (rate<=11020 || ABS(rate-11020)<ABS(rate- 8000)) sample_rate = SR_11p02KHZ;
+	else if (rate<= 8000 || ABS(rate- 8000)<ABS(rate- 7350)) sample_rate = SR_8KHZ;
+	else sample_rate = SR_7p35KHZ;
+	
+	i2s_obj.sampling_rate = sample_rate;
+    	
+	i2s_set_param(&i2s_obj, i2s_obj.channel_num, i2s_obj.sampling_rate, WL_16b);
+
+	DBG_8195A("ReqRate %d Sample Rate %d\n", rate, sample_rate);
+	
+	// ESP's
 	//Find closest divider 
-	int bestclkmdiv, bestbckdiv, bestbits, bestfreq=0;
-	int tstfreq;
-	int bckdiv, clkmdiv, bits;
-	/*
-		CLK_I2S = 160MHz / I2S_CLKM_DIV_NUM
-		BCLK = CLK_I2S / I2S_BCK_DIV_NUM
-		WS = BCLK/ 2 / (16 + I2S_BITS_MOD)
-		Note that I2S_CLKM_DIV_NUM must be >5 for I2S data
-		I2S_CLKM_DIV_NUM - 5-63
-		I2S_BCK_DIV_NUM - 2-63
-		
-		We also have the option to send out more than 2x16 bit per sample. Most I2S codecs will
-		ignore the extra bits and in the case of the 'fake' PWM/delta-sigma outputs, they will just lower the output
-		voltage a bit, so we add them when it makes sense. Some of them, however, won't accept it, that's
-		why we have the option not to do this.
-	*/
-	for (bckdiv=2; bckdiv<64; bckdiv++) {
-		for (clkmdiv=5; clkmdiv<64; clkmdiv++) {
-			for (bits=16; bits<(lockBitcount?17:20); bits++) {
-				tstfreq=BASEFREQ/(bckdiv*clkmdiv*bits*2);
-				if (ABS(rate-tstfreq)<ABS(rate-bestfreq)) {
-					bestfreq=tstfreq;
-					bestclkmdiv=clkmdiv;
-					bestbckdiv=bckdiv;
-					bestbits=bits;
-				}
-			}
-		}
-	}
 
-	printf("ReqRate %d MDiv %d BckDiv %d Bits %d  Frq %d\n", 
-		rate, bestclkmdiv, bestbckdiv, bestbits, (int)(BASEFREQ/(bckdiv*clkmdiv*bits*2)));
-
-	CLEAR_PERI_REG_MASK(I2SCONF, I2S_TRANS_SLAVE_MOD|
-						(I2S_BITS_MOD<<I2S_BITS_MOD_S)|
-						(I2S_BCK_DIV_NUM <<I2S_BCK_DIV_NUM_S)|
-						(I2S_CLKM_DIV_NUM<<I2S_CLKM_DIV_NUM_S));
-	SET_PERI_REG_MASK(I2SCONF, I2S_RIGHT_FIRST|I2S_MSB_RIGHT|I2S_RECE_SLAVE_MOD|
-						I2S_RECE_MSB_SHIFT|I2S_TRANS_MSB_SHIFT|
-						((bestbits-16)<<I2S_BITS_MOD_S)|
-						(((bestbckdiv)&I2S_BCK_DIV_NUM )<<I2S_BCK_DIV_NUM_S)|
-						(((bestclkmdiv)&I2S_CLKM_DIV_NUM)<<I2S_CLKM_DIV_NUM_S));
 }
 
 //Current DMA buffer we're writing to
@@ -372,7 +278,7 @@ static int currDMABuffPos=0;
 //thread if the buffer is full and resume when there's room again.
 void i2sPushSample(unsigned int sample) {
 	//Check if current DMA buffer is full.
-	if (currDMABuffPos==I2SDMABUFLEN || currDMABuff==NULL) {
+	if (currDMABuffPos==I2S_DMA_PAGE_SIZE || currDMABuff==NULL) {
 		//We need a new buffer. Pop one from the queue.
 		xQueueReceive(dmaQueue, &currDMABuff, portMAX_DELAY);
 		currDMABuffPos=0;
