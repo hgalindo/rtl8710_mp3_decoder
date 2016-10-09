@@ -1,3 +1,4 @@
 GCC-RELEASE/application/*
+GCC-RELEASE/run_scp.sh
 *.o
 src/mapfile

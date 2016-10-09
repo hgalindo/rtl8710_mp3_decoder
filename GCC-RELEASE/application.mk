@@ -1,6 +1,7 @@
 
 # Initialize tool chain
 # -------------------------------------------------------------------
+ARM_GCC_TOOLCHAIN = /usr/
 ARM_GCC_TOOLCHAIN = ../../../tools/arm-none-eabi-gcc/4.8.3-2014q1/
 AMEBA_TOOLDIR	= ../../../component/soc/realtek/8195a/misc/iar_utility/common/tools/
 FLASH_TOOLDIR = ../../../component/soc/realtek/8195a/misc/gcc_utility/
@@ -47,8 +48,8 @@ BIN_DIR=$(TARGET)/Debug/bin
 INCLUDES =
 INCLUDES += -I../inc
 INCLUDES += -I../inc/rtl8195a
-INCLUDES += -I../inc/ssl
-INCLUDES += -I../inc/udhcp
+#INCLUDES += -I../inc/ssl
+#INCLUDES += -I../inc/udhcp
 INCLUDES += -I../src/include
 INCLUDES += -I../src/mad/
 INCLUDES += -I../../../component/soc/realtek/common/bsp
@@ -107,7 +108,7 @@ INCLUDES += -I../../../component/common/file_system/fatfs/r0.10c/include
 INCLUDES += -I../../../component/common/drivers/sdio/realtek/sdio_host/inc
 INCLUDES += -I../../../component/common/audio
 INCLUDES += -I../../../component/common/drivers/i2s
-INCLUDES += -I../../../component/common/application/xmodem
+#INCLUDES += -I../../../component/common/application/xmodem
 
 # Source file list
 # -------------------------------------------------------------------
@@ -141,9 +142,9 @@ SRC_C += ../../../component/common/api/lwip_netconf.c
 SRC_C += ../../../component/common/api/network/src/ping_test.c
 SRC_C += ../../../component/common/utilities/ssl_client.c
 SRC_C += ../../../component/common/utilities/ssl_client_ext.c
-SRC_C += ../../../component/common/utilities/tcptest.c
+#SRC_C += ../../../component/common/utilities/tcptest.c
 SRC_C += ../../../component/common/application/uart_adapter/uart_adapter.c
-SRC_C += ../../../component/common/utilities/uart_ymodem.c
+#SRC_C += ../../../component/common/utilities/uart_ymodem.c
 SRC_C += ../../../component/common/utilities/update.c
 SRC_C += ../../../component/common/api/network/src/wlan_network.c
 
@@ -264,7 +265,7 @@ SRC_C += ../../../component/soc/realtek/8195a/fwlib/rtl8195a/src/rtl8195a_gpio.c
 SRC_C += ../../../component/soc/realtek/8195a/fwlib/rtl8195a/src/rtl8195a_i2c.c
 SRC_C += ../../../component/soc/realtek/8195a/fwlib/rtl8195a/src/rtl8195a_i2s.c
 SRC_C += ../../../component/soc/realtek/8195a/fwlib/rtl8195a/src/rtl8195a_mii.c
-SRC_C += ../../../component/soc/realtek/8195a/fwlib/rtl8195a/src/rtl8195a_nfc.c
+#SRC_C += ../../../component/soc/realtek/8195a/fwlib/rtl8195a/src/rtl8195a_nfc.c
 SRC_C += ../../../component/soc/realtek/8195a/fwlib/rtl8195a/src/rtl8195a_pwm.c
 SRC_C += ../../../component/soc/realtek/8195a/fwlib/rtl8195a/src/rtl8195a_ssi.c
 SRC_C += ../../../component/soc/realtek/8195a/fwlib/rtl8195a/src/rtl8195a_timer.c
@@ -366,11 +367,11 @@ SRC_C += ../../../component/common/example/example_entry.c
 SRC_C += ../../../component/common/example/uart_atcmd/example_uart_atcmd.c
 
 #utilities - FatFS
-SRC_C += ../../../component/common/file_system/fatfs/fatfs_ext/src/ff_driver.c
-SRC_C += ../../../component/common/file_system/fatfs/r0.10c/src/diskio.c
-SRC_C += ../../../component/common/file_system/fatfs/r0.10c/src/ff.c
-SRC_C += ../../../component/common/file_system/fatfs/r0.10c/src/option/ccsbcs.c
-SRC_C += ../../../component/common/file_system/fatfs/disk_if/src/sdcard.c
+#SRC_C += ../../../component/common/file_system/fatfs/fatfs_ext/src/ff_driver.c
+#SRC_C += ../../../component/common/file_system/fatfs/r0.10c/src/diskio.c
+#SRC_C += ../../../component/common/file_system/fatfs/r0.10c/src/ff.c
+#SRC_C += ../../../component/common/file_system/fatfs/r0.10c/src/option/ccsbcs.c
+#SRC_C += ../../../component/common/file_system/fatfs/disk_if/src/sdcard.c
 
 #utilities - xmodme update
 SRC_C += ../../../component/common/application/xmodem/uart_fw_update.c

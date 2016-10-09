@@ -385,7 +385,14 @@ void ICACHE_FLASH_ATTR tskconnect(void *pvParameters) {
 	sprintf(config->password, AP_PASS);
 	//wifi_station_set_config(config);
 	//wifi_station_connect();
-	wifi_connect(config->ssid, RTW_SECURITY_WPA2_AES_PSK, config->password, strlen((char*)config->ssid), strlen((char*)config->password), 0, NULL);
+	int ret = RTW_SUCCESS;
+	while(1) {
+		ret = wifi_connect(config->ssid, RTW_SECURITY_WPA2_AES_PSK, config->password, strlen((char*)config->ssid), strlen((char*)config->password), 0, NULL);
+		if(ret!= RTW_SUCCESS){
+			DBG_8195A("\n\rERROR: Can't connect to AP");
+			vTaskDelay(3000/portTICK_RATE_MS);
+		}
+	}
 	DBG_8195A("Connected to wifi\n");
 	free(config);
 
@@ -396,23 +403,16 @@ void ICACHE_FLASH_ATTR tskconnect(void *pvParameters) {
 	vTaskDelete(NULL);
 }
 
-//We need this to tell the OS we're running at a higher clock frequency.
-//sk//extern void os_update_cpu_frequency(int mhz);
-
-void ICACHE_FLASH_ATTR user_init(void) {
-	//Tell hardware to run at 160MHz instead of 80MHz
+void ICACHE_FLASH_ATTR main(void) {
+	//Tell hardware to run at 166MHz instead of 83MHz
 	//This actually is not needed in normal situations... the hardware is quick enough to do
-	//MP3 decoding at 80MHz. It, however, seems to help with receiving data over long and/or unstable
+	//MP3 decoding at 83MHz. It, however, seems to help with receiving data over long and/or unstable
 	//links, so you may want to turn it on. Also, the delta-sigma code seems to need a bit more speed
 	//than the other solutions to keep up with the output samples, so it's also enabled there.
 #if defined(DELTA_SIGMA_HACK)
-	//SET_PERI_REG_MASK(0x3ff00014, BIT(0));
-	//s_update_cpu_frequency(160);
+	//HalCpuClkConfig(0); // 0 - 166666666 Hz, 1 - 83333333 Hz, 2 - 41666666 Hz, 3 - 20833333 Hz, 4 - 10416666 Hz, 5 - 4000000 Hz
 #endif
-	
-	//Set the UART to 115200 baud
-	//UART_SetBaudrate(0, 115200);
-
+		
 	//Initialize the SPI RAM chip communications and see if it actually retains some bytes. If it
 	//doesn't, warn user.
 	if (!spiRamFifoInit()) {

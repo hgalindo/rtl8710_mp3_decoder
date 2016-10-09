@@ -13,7 +13,7 @@
 /**
  * For AT cmd Log service configurations
  */
-#define SUPPORT_LOG_SERVICE	1
+#define SUPPORT_LOG_SERVICE	0
 #if SUPPORT_LOG_SERVICE
 #define LOG_SERVICE_BUFLEN     100 //can't larger than UART_LOG_CMD_BUFLEN(127)
 #define CONFIG_LOG_HISTORY	0
@@ -62,8 +62,8 @@
 //on/off relative commands in log service
 #define CONFIG_SSL_CLIENT	0
 #define CONFIG_WEBSERVER	0
-#define CONFIG_OTA_UPDATE	1
-#define CONFIG_BSD_TCP		1//NOTE : Enable CONFIG_BSD_TCP will increase about 11KB code size
+#define CONFIG_OTA_UPDATE	0
+#define CONFIG_BSD_TCP		0//NOTE : Enable CONFIG_BSD_TCP will increase about 11KB code size
 #define CONFIG_AIRKISS		0//on or off tencent airkiss
 #define CONFIG_UART_SOCKET	0
 #define CONFIG_UART_XMODEM	0//support uart xmodem upgrade or not
@@ -134,6 +134,8 @@
 
 /* For UART Module AT command example */
 #define CONFIG_EXAMPLE_UART_ATCMD			1
+//SK//
+#undef CONFIG_EXAMPLE_UART_ATCMD
 #if CONFIG_EXAMPLE_UART_ATCMD
 #undef FREERTOS_PMU_TICKLESS_PLL_RESERVED
 #define FREERTOS_PMU_TICKLESS_PLL_RESERVED  1
